@@ -1,157 +1,168 @@
-# Agent Handoff — AWS Affiliate Threads Post Generator
+# AGENT HANDOFF — AWS Affiliate Threads Post Generator
 
-## 系統說明
+## 系統概覽
 
-GitHub Actions 自動化系統。每小時執行一次，自動：
-1. 讀 `url.txt` 的 AWS 文章網址
-2. 檢查 `processed_urls.txt` 確認哪些已處理過
-3. 挑一個從沒處理過的網址
-4. 抓取文章內容
-5. 用 Gemini AI 生成 150–200 字 Threads 貼文
-6. 存到 `output/` 目錄（UTC 時間戳命名）
-7. 更新 `processed_urls.txt`
-8. 自動 commit & push 回 GitHub
+每 5 分鐘透過 GitHub Actions 自動從 `url.txt` 取一個 Amazon affiliate URL，用 Gemini AI 生成 Threads 貼文，發布到 Threads，並記錄已處理的 URL。
 
 ---
 
-## 專案結構
+## 目前狀態（2026-08-21）
+
+**✅ 完全運作中**
+- GitHub Actions cron `*/5 * * * *` 每 5 分鐘自動執行
+- Gemini 生成貼文（字元卡控 ≤ 500）
+- Threads API 發布成功
+- Amazon affiliate URL 保留 `tag=thenewssam-20`
+- 商品縮圖顯示正常（使用 `amazon.com/dp/ID?tag=` 格式）
+
+---
+
+## 檔案結構
 
 ```
-thread/
-├── url.txt                    ← 用戶放 AWS 文章網址（一行一個）
-├── processed_urls.txt         ← 自動管理，勿手動編輯
+threads_aws/
+├── .github/
+│   └── workflows/
+│       └── hourly.yml          # GitHub Actions workflow（每 5 分鐘執行）
 ├── src/
-│   ├── main.py               ← 主程式（讀 URL → 生成 → 發布 → 存檔 → 更新）
-│   ├── scraper.py            ← 抓取文章內容（trafilatura + BS4）
-│   ├── generator.py          ← Gemini 貼文生成（臺灣資深工程師風格）
-│   └── publisher.py          ← Threads API 發布（已啟用）
-├── output/                   ← 生成的貼文存這裡
-├── .github/workflows/
-│   └── hourly.yml            ← GitHub Actions 每小時執行
-├── requirements.txt          ← Python 依賴
-└── .env                      ← API 金鑰（勿 commit）
+│   ├── main.py                 # 主流程：讀 URL → 生成 → 發布 → 記錄
+│   ├── generator.py            # Gemini API，含字元卡控重試邏輯
+│   ├── publisher.py            # Threads API（Meta Graph API）
+│   └── scraper.py              # HTML 抓取（目前未使用，Gemini 直接用 URL）
+├── url.txt                     # 待處理的 Amazon affiliate URL 清單
+├── processed_urls.txt          # 已處理的 URL（自動管理，勿手動修改）
+├── output/                     # 生成的貼文存檔（YYYY-MM-DD-HH-MM.txt）
+├── requirements.txt
+└── .env                        # 本地環境變數（不推到 GitHub）
 ```
 
 ---
 
-## .env 設定
+## GitHub Secrets（必須設定）
 
-| 變數 | 說明 |
-|------|------|
-| GEMINI_API_KEY | Google Gemini API Key |
-| THREADS_ACCESS_TOKEN | Threads API access token |
-| THREADS_USER_ID | Threads 用戶 ID |
-
-**本地運行**：複製 `.env.example` 為 `.env`，填入金鑰。
-
-**GitHub Actions**：所有三個 secrets 已在 repo 設定。
+| Secret | 說明 |
+|--------|------|
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `THREADS_ACCESS_TOKEN` | Meta Threads long-lived token（60天過期，需定期更新） |
+| `THREADS_USER_ID` | `28106974412248485` |
 
 ---
 
-## 用法
+## 環境變數（.env 本地）
 
-### 本地測試
+```
+GEMINI_API_KEY=...
+THREADS_ACCESS_TOKEN=...
+THREADS_USER_ID=28106974412248485
+```
+
+---
+
+## 核心邏輯
+
+### main.py 流程
+1. 讀 `url.txt`，跳過已在 `processed_urls.txt` 的 URL
+2. 取第一個未處理 URL
+3. 呼叫 `generate(url)` 生成貼文
+4. 存到 `output/YYYY-MM-DD-HH-MM.txt`
+5. 把 URL 加到 `processed_urls.txt`
+6. 呼叫 `publish_to_threads()` 發布
+
+Exit codes: `0`=成功, `1`=錯誤, `2`=無可用 URL
+
+### generator.py 字元卡控
+- Threads 上限 500 字元
+- URL 用 `amazon.com/dp/ID?tag=thenewssam-20` 格式（~54 字元）
+- Post body 上限 440 字元（`CHAR_LIMIT`）
+- 超過限制時最多 retry 3 次（每次把 prompt 限制縮緊 40 字元）
+- 最終若仍超過，hard truncate 在單詞邊界
+
+### publisher.py URL 處理
+- 傳進來的 post_text 末尾已是 clean URL（generator 負責）
+- 從 post_text 末尾抓 URL，用 `_clean_amazon_url()` 確保格式正確
+- `_clean_amazon_url()` 用 `urllib.parse` 正確解析 `tag=` 參數
+
+---
+
+## Gemini 模型 fallback chain
+
+```python
+MODEL_CHAIN = [
+    "models/gemini-3.5-flash",       # 主要
+    "models/gemini-3.6-flash",       # 備用 1
+    "models/gemini-3.5-flash-lite",  # 備用 2
+    "models/gemini-flash-latest",    # 備用 3
+]
+```
+
+503/unavailable 時自動切換下一個模型。
+
+---
+
+## Threads Access Token 更新方式
+
+Token 每 60 天過期，需要手動更新：
+
+1. 去 https://developers.facebook.com/tools/explorer/
+2. 選 App `1536373420985324`（threads-automation）
+3. 點 "Generate Threads Access Token"
+4. 取得 short-lived token 後換 long-lived：
+   ```
+   curl -G "https://graph.threads.net/access_token" \
+     --data-urlencode "grant_type=th_exchange_token" \
+     --data-urlencode "client_id=1536373420985324" \
+     --data-urlencode "client_secret=6dc6d1dc891e4b34cbdb75c494be4605" \
+     --data-urlencode "access_token=<short_lived_token>"
+   ```
+5. 把 long-lived token 更新到：
+   - GitHub Secrets → `THREADS_ACCESS_TOKEN`
+   - 本地 `.env` → `THREADS_ACCESS_TOKEN`
+
+---
+
+## 新增 URL 方式
+
+直接在 `url.txt` 新增一行 Amazon affiliate URL，然後 git push。
+系統會自動在下次執行時處理新的 URL。
+
+---
+
+## 常見問題排查
+
+| 問題 | 原因 | 解法 |
+|------|------|------|
+| `Failed to decrypt` | Token 無效或格式錯誤 | 重新生成 long-lived token |
+| `500 Server Error` | 貼文超過 500 字元 | 字元卡控已自動處理 |
+| `503 UNAVAILABLE` | Gemini 模型繁忙 | 自動 fallback 到下一個模型 |
+| `All models failed` | 所有 Gemini 模型暫時不可用 | 等下次 cron 自動重試（URL 不會被標記為已處理）|
+| `0 workflow runs` | workflow 檔案改動才會觸發 push | 任何 commit push 都會觸發 |
+
+---
+
+## Meta App 資訊
+
+- App ID: `1536373420985324`
+- App Name: threads-automation
+- App Secret: `6dc6d1dc891e4b34cbdb75c494be4605`
+- Threads User ID: `28106974412248485`
+- Threads Username: johnthenewss
+
+---
+
+## 測試指令（本地）
 
 ```bash
-# 安裝依賴
-pip install -r requirements.txt
-
-# 執行一次（生成 + 發布）
+cd /Users/sam/Desktop/程市區/threads_aws
+source venv/bin/activate
+export $(grep -v "^#" .env | xargs)
 python src/main.py
 ```
 
-### 自動化（推薦）
-
-1. 把 AWS 文章網址加進 `url.txt`（一行一個）
-2. Push 到 GitHub
-3. GitHub Actions 會每小時自動執行
-   - 生成 Threads 貼文
-   - 自動發布到你的 Threads 帳號
-   - 存檔到 `output/`
-   - 更新 `processed_urls.txt`
-
-**手動觸發**：repo → **Actions** → **Generate Threads Post** → **Run workflow**
-
 ---
 
-## Exit codes
+## 下一步（可選改進）
 
-| 代碼 | 含義 |
-|------|------|
-| 0 | 成功生成並存檔 |
-| 1 | 錯誤（抓取失敗、生成失敗等） |
-| 2 | 無可用 URL（所有 URL 都已處理過） |
-
----
-
-## 貼文風格
-
-- **150–200 字** 英文
-- **臺灣資深雲工程師** 語氣：超級諷刺、尖銳、累但專業
-- **第一句攻擊痛點**（無暖場）
-- **短段落**（2–4 句）適合 Threads
-- **自然引入產品** 當解決方案
-- **結尾加沙雕 CTA**
-- 最後一行是文章原始網址
-- **最多 1–2 個 emoji**
-- 零 AI 制式用語（"game-changer", "leverage" 等免談）
-
----
-
-## GitHub 部署
-
-**Repo:** https://github.com/fsdhygefdhyter/thread
-
-**已設定的 Secrets:**
-- `GEMINI_API_KEY` ✅
-- `THREADS_ACCESS_TOKEN` ✅
-- `THREADS_USER_ID` ✅
-
----
-
-## Threads API 整合
-
-**狀態：✅ 已完全啟用**
-
-### 自動流程
-
-每次執行時：
-1. 讀一個未處理的 AWS 文章 URL
-2. 抓取內容 + 用 Gemini 生成 Threads 貼文（150–200 字）
-3. **自動發布到你的 Threads 帳號**
-4. 存檔到 `output/YYYY-MM-DD-HH-MM.txt`
-5. 更新 `processed_urls.txt`
-6. Commit & push 到 GitHub
-
-### 測試結果
-
-已成功發布 2 篇測試貼文：
-- 2026-08-21 13:54 — FitVille 鞋子（https://www.threads.net/t/17892416439603736）
-- 2026-08-21 13:59 — CeraVe 保濕乳（https://www.threads.net/t/18074160674389502）
-
-### 憑證設定
-
-- **User ID**: `28106974412248485`
-- **App ID**: `1536373420985324`
-- **Access Token**: 已在 GitHub Secrets + 本地 `.env` 設定
-
-### Access Token 更新
-
-Threads API token 有效期約 60 天。快過期時：
-1. 去 https://developers.facebook.com/tools/explorer
-2. 重新產生新 token
-3. 更新 GitHub Secrets 中的 `THREADS_ACCESS_TOKEN`
-4. 本地 `.env` 同步更新
-
-系統會自動使用新 token。
-
----
-
-## 重點筆記
-
-- `url.txt`：用戶專用，加多少網址就處理多少
-- `processed_urls.txt`：永遠不要手動編輯，系統自動維護去重
-- `output/` 內的檔案會被 commit 回 GitHub（方便保留記錄）
-- 每次執行只處理 **一個** URL（防止 API 額度爆炸）
-- 抓取或生成失敗時，不會標記該 URL 為已處理（下次會重試）
-- 所有相對路徑都基於 repo root（`src/main.py` 會自動解析）
+- [ ] Token 快過期時自動 email 提醒
+- [ ] 每次 run 完後 pull latest（避免 git conflict）
+- [ ] 改回 hourly cron（`0 * * * *`）正式上線後
+- [ ] 加更多 URL 進 `url.txt`（現有 43 個，已處理 11 個）
