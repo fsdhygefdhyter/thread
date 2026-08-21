@@ -5,16 +5,15 @@ Workflow:
   1. Read url.txt — all candidate AWS affiliate URLs.
   2. Read processed_urls.txt — URLs already handled.
   3. Pick ONE unprocessed URL.
-  4. Scrape the article content.
-  5. Generate a 150–200 word Threads post using Gemini.
-  6. Save the post to output/<timestamp>.txt
-  7. Append the URL to processed_urls.txt.
-  8. (Future) Publish to Threads via publisher.publish_to_threads().
+  4. Generate a 150–200 word Threads post using Gemini (Gemini fetches the URL).
+  5. Save the post to output/<timestamp>.txt
+  6. Append the URL to processed_urls.txt.
+  7. Publish to Threads via publisher.publish_to_threads().
 
 Exit codes:
   0 — success
-  1 — error (scrape fail, generation fail, I/O error, etc.)
-  2 — no unprocessed URLs available (NO UNUSED URL AVAILABLE)
+  1 — error (generation fail, I/O error, etc.)
+  2 — no unprocessed URLs available
 """
 
 import os
@@ -27,9 +26,8 @@ from dotenv import load_dotenv
 # Ensure src/ is on the path when called from repo root
 sys.path.insert(0, str(Path(__file__).parent))
 
-from scraper import scrape
 from generator import generate
-from publisher import publish_to_threads   # stub — safe to import always
+from publisher import publish_to_threads
 
 
 # ── File paths (all relative to repo root, one level up from src/) ────────────
@@ -132,22 +130,9 @@ def main() -> int:
 
     print(f"\nSelected URL: {target_url}")
 
-    # ── Step 4: Scrape article ────────────────────────────────────────
-    print("\n[1/3] Scraping article...")
-    article = scrape(target_url)
-
-    if not article.is_ok:
-        print(f"ERROR: Failed to scrape article: {article.error}")
-        print("URL will NOT be added to processed_urls.txt — will retry next run.")
-        return 1
-
-    print(f"      OK — {len(article.text)} chars extracted")
-    if article.title:
-        print(f"      Title: {article.title[:80]}")
-
-    # ── Step 5: Generate Threads post ─────────────────────────────────
-    print("\n[2/3] Generating Threads post...")
-    result = generate(article, gemini_api_key=gemini_key, original_url=target_url)
+    # ── Step 4: Generate Threads post (Gemini fetches the URL) ────────
+    print("\n[1/3] Generating Threads post with Gemini...")
+    result = generate(target_url, gemini_api_key=gemini_key)
 
     if not result.is_ok:
         print(f"ERROR: Post generation failed: {result.error}")
@@ -159,23 +144,20 @@ def main() -> int:
     print(result.post_text)
     print("--- END PREVIEW ---\n")
 
-    # ── Step 6: Save post to output/ ──────────────────────────────────
-    print("[3/3] Saving post...")
+    # ── Step 5: Save post to output/ ──────────────────────────────────
+    print("[2/3] Saving post...")
     output_path = save_post(result.post_text)
     print(f"      Saved to: {output_path.relative_to(REPO_ROOT)}")
 
-    # ── Step 7: Mark URL as processed ────────────────────────────────
+    # ── Step 6: Mark URL as processed ────────────────────────────────
     mark_processed(PROCESSED_FILE, target_url)
     print(f"      Marked as processed: {target_url}")
 
-    # ── Step 8 (Future): Publish to Threads ───────────────────────────
-    # Currently DISABLED (stub mode).
-    # To enable: uncomment below and ensure THREADS_ACCESS_TOKEN + THREADS_USER_ID are in GitHub Secrets.
-    #
+    # ── Step 7: Publish to Threads ───────────────────────────────────
     threads_token   = os.getenv("THREADS_ACCESS_TOKEN")
     threads_user_id = os.getenv("THREADS_USER_ID")
     if threads_token and threads_user_id:
-        print("\n[4/4] Publishing to Threads...")
+        print("\n[3/3] Publishing to Threads...")
         pub_result = publish_to_threads(
             post_text=result.post_text,
             access_token=threads_token,
@@ -186,7 +168,7 @@ def main() -> int:
         else:
             print(f"      Publish skipped: {pub_result.error}")
     else:
-        print("\n[4/4] Threads publishing skipped (credentials not configured).")
+        print("\n[3/3] Threads publishing skipped (credentials not configured).")
 
     print("\nDone.")
     return 0

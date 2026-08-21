@@ -1,12 +1,11 @@
 """
 src/generator.py — Threads post generator using Google Gemini.
 
-Takes a scraped AWS affiliate article and generates a 150–200 word
-English Threads post in the voice of a senior Taiwanese IT/cloud engineer.
+Gemini directly fetches and analyzes the AWS affiliate URL,
+then generates a 150–200 word English Threads post.
 """
 
 from dataclasses import dataclass
-from scraper import ScrapedArticle
 
 try:
     from google import genai
@@ -65,66 +64,44 @@ class GeneratedPost:
         return len(self.post_text.split())
 
 
-def build_user_prompt(article: ScrapedArticle, original_url: str = "") -> str:
-    """Build the user-facing prompt from the scraped article."""
-    # Limit article text to avoid token waste
-    text_preview = article.text[:4000]
-    if len(article.text) > 4000:
-        text_preview += "\n\n[... content truncated ...]"
-
-    title_line = f"Title: {article.title}" if article.title else ""
-    
-    # Include instruction to use the original URL in the final post
-    url_instruction = f"\n\nIMPORTANT: At the very end of your post, include this exact URL (preserve all parameters):\n{original_url}" if original_url else ""
-
-    return f"""Write a Threads post for this AWS affiliate product article.
-
-Article URL: {article.url}
-{title_line}
-
---- ARTICLE CONTENT ---
-{text_preview}
---- END ---
-
-Remember:
-- 150–200 words exactly
-- Attack the pain point in the first sentence
-- Sound like a tired but sharp senior cloud engineer
-- Naturally work in the product as the solution
-- End with a funny CTA
-- Put the article URL on its own line at the very end
-- Output ONLY the post text, nothing else
-{url_instruction}
-"""
-
-
 def generate(
-    article: ScrapedArticle,
+    url: str,
     gemini_api_key: str,
-    original_url: str = "",
 ) -> GeneratedPost:
     """
-    Generate a Threads post from a scraped article using Gemini.
+    Generate a Threads post from an AWS affiliate URL using Gemini.
+    Gemini fetches the URL directly and analyzes it.
 
     Args:
-        article:        A successfully scraped article (article.is_ok must be True).
+        url:            The AWS affiliate product URL.
         gemini_api_key: Google Gemini API key.
-        original_url:   The original URL with affiliate parameters. If provided, will be used in the final post.
 
     Returns:
         GeneratedPost with the post text, or an error message.
     """
-    if not article.is_ok:
-        return GeneratedPost(url=article.url, error=f"Scrape failed: {article.error}")
-
     if not HAS_GENAI:
         return GeneratedPost(
-            url=article.url,
+            url=url,
             error="google-genai package not installed. Run: pip install google-genai",
         )
 
     client = genai.Client(api_key=gemini_api_key)
-    user_prompt = build_user_prompt(article, original_url=original_url)
+    
+    # Create user prompt that asks Gemini to fetch and analyze the URL
+    user_prompt = f"""Visit and read this AWS product URL, then write a Threads post about it:
+
+{url}
+
+Instructions:
+- Fetch the URL and read the product page content
+- Write a 150–200 word Threads post in the voice of a tired senior cloud engineer
+- Attack the pain point in the first sentence
+- Naturally work in the product as the solution
+- End with a funny CTA
+- Include the URL on its own line at the very end
+- Output ONLY the post text, nothing else
+"""
+
     last_error = ""
 
     for model in MODEL_CHAIN:
@@ -135,8 +112,8 @@ def generate(
                 contents=user_prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
-                    temperature=0.85,        # slightly higher for personality
-                    max_output_tokens=1024,  # posts are short
+                    temperature=0.85,
+                    max_output_tokens=1024,
                 ),
             )
             raw = (response.text or "").strip()
@@ -144,10 +121,7 @@ def generate(
                 last_error = f"{model} returned empty response"
                 continue
 
-            # Ensure the original URL appears at the end (with all affiliate parameters)
-            post_text = _ensure_url_at_end(raw, original_url or article.url)
-
-            result = GeneratedPost(url=article.url, post_text=post_text)
+            result = GeneratedPost(url=url, post_text=raw)
             print(f"  Generated post: {result.word_count} words")
             return result
 
@@ -158,23 +132,9 @@ def generate(
                 print(f"  {model} unavailable, trying next model...")
                 continue
             # Non-transient error — don't retry other models
-            return GeneratedPost(url=article.url, error=f"Gemini error: {last_error[:300]}")
+            return GeneratedPost(url=url, error=f"Gemini error: {last_error[:300]}")
 
     return GeneratedPost(
-        url=article.url,
+        url=url,
         error=f"All Gemini models failed. Last error: {last_error[:300]}",
     )
-
-
-def _ensure_url_at_end(post_text: str, url: str) -> str:
-    """
-    Make sure the article URL appears on its own line at the end of the post.
-    If Gemini already included it, leave it. If not, append it.
-    """
-    if url in post_text:
-        # URL is there — make sure it's on its own line at the end
-        # Remove it from wherever it is and re-append cleanly
-        cleaned = post_text.replace(url, "").rstrip()
-        return f"{cleaned}\n\n{url}"
-    else:
-        return f"{post_text.rstrip()}\n\n{url}"
