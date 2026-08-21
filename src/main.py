@@ -147,7 +147,7 @@ def main() -> int:
 
     # ── Step 5: Generate Threads post ─────────────────────────────────
     print("\n[2/3] Generating Threads post...")
-    result = generate(article, gemini_api_key=gemini_key)
+    result = generate(article, gemini_api_key=gemini_key, original_url=target_url)
 
     if not result.is_ok:
         print(f"ERROR: Post generation failed: {result.error}")

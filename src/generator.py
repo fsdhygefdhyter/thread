@@ -64,7 +64,7 @@ class GeneratedPost:
         return len(self.post_text.split())
 
 
-def _build_user_prompt(article: ScrapedArticle) -> str:
+def build_user_prompt(article: ScrapedArticle, original_url: str = "") -> str:
     """Build the user-facing prompt from the scraped article."""
     # Limit article text to avoid token waste
     text_preview = article.text[:4000]
@@ -72,6 +72,9 @@ def _build_user_prompt(article: ScrapedArticle) -> str:
         text_preview += "\n\n[... content truncated ...]"
 
     title_line = f"Title: {article.title}" if article.title else ""
+    
+    # Include instruction to use the original URL in the final post
+    url_instruction = f"\n\nIMPORTANT: At the very end of your post, include this exact URL (preserve all parameters):\n{original_url}" if original_url else ""
 
     return f"""Write a Threads post for this AWS affiliate product article.
 
@@ -90,12 +93,14 @@ Remember:
 - End with a funny CTA
 - Put the article URL on its own line at the very end
 - Output ONLY the post text, nothing else
+{url_instruction}
 """
 
 
 def generate(
     article: ScrapedArticle,
     gemini_api_key: str,
+    original_url: str = "",
 ) -> GeneratedPost:
     """
     Generate a Threads post from a scraped article using Gemini.
@@ -103,6 +108,7 @@ def generate(
     Args:
         article:        A successfully scraped article (article.is_ok must be True).
         gemini_api_key: Google Gemini API key.
+        original_url:   The original URL with affiliate parameters. If provided, will be used in the final post.
 
     Returns:
         GeneratedPost with the post text, or an error message.
@@ -117,7 +123,7 @@ def generate(
         )
 
     client = genai.Client(api_key=gemini_api_key)
-    user_prompt = _build_user_prompt(article)
+    user_prompt = build_user_prompt(article, original_url=original_url)
     last_error = ""
 
     for model in MODEL_CHAIN:
@@ -137,8 +143,8 @@ def generate(
                 last_error = f"{model} returned empty response"
                 continue
 
-            # Ensure the article URL appears at the end
-            post_text = _ensure_url_at_end(raw, article.url)
+            # Ensure the original URL appears at the end (with all affiliate parameters)
+            post_text = _ensure_url_at_end(raw, original_url or article.url)
 
             result = GeneratedPost(url=article.url, post_text=post_text)
             print(f"  Generated post: {result.word_count} words")
