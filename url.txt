@@ -1,0 +1,4 @@
+# AWS Affiliate URLs
+# One URL per line. Lines starting with # are ignored.
+# Add your AWS affiliate article URLs below:
+

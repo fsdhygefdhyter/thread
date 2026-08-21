@@ -1,0 +1,9 @@
+# Core
+google-genai==1.16.0
+requests==2.32.3
+python-dotenv==1.0.1
+
+# Article extraction
+trafilatura==1.12.2
+beautifulsoup4==4.12.3
+lxml==5.3.0

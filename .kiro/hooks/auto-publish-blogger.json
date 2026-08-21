@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "自動發布新聞到 Blogger",
+      "trigger": "UserPromptSubmit",
+      "action": {
+        "type": "agent",
+        "prompt": "The user may be submitting one or more news article URLs to be published to their Blogger blog. \n\nIf the user's message contains one or more URLs (http:// or https://), treat it as a request to publish those URLs to their Blogger blog using the automation system located at /Users/sam/Desktop/程市區/測試kiro_bloggerapi/.\n\nTo publish, run this command for each URL:\n/Users/sam/Desktop/程市區/測試kiro_bloggerapi/venv/bin/python /Users/sam/Desktop/程市區/測試kiro_bloggerapi/main.py <URL>\n\nThe script will automatically scrape the news, generate an article using Gemini AI with the role prompt in aa.txt, and publish it directly to the Blogger blog (biblestudyallday.blogspot.com) as a live public post.\n\nAfter running, report the result: article title and the published URL if successful, or the error if it failed.\n\nIf the user's message does NOT contain URLs, ignore this instruction and respond normally."
+      },
+      "enabled": false
+    }
+  ]
+}

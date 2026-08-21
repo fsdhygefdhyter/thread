@@ -1,0 +1,21 @@
+# Secrets — never commit these
+.env
+.token_cache.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Old Blogger system files (no longer used)
+_batch_publish.py
+
+# Keep output/ tracked — generated Threads posts are committed to the repo
+# (do NOT add output/ here)

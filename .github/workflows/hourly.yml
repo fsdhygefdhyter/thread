@@ -1,0 +1,77 @@
+name: Generate Threads Post
+
+on:
+  # Run automatically every hour
+  schedule:
+    - cron: "0 * * * *"
+
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to commit and push generated files
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Use a token with write access so the push step works
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Fetch full history so git log works correctly
+          fetch-depth: 0
+
+      # ── 2. Set up Python ─────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      # ── 3. Install dependencies ──────────────────────────────────────
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Run the automation script ─────────────────────────────────
+      - name: Generate Threads post
+        id: generate
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python src/main.py
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        # Exit code 2 means "no URLs left" — treat as a soft success
+        # so the workflow doesn't show as failed
+        continue-on-error: true
+
+      # ── 5. Check outcome ─────────────────────────────────────────────
+      - name: Check result
+        run: |
+          if [ "${{ steps.generate.outcome }}" = "failure" ]; then
+            echo "Script failed with a hard error. Check logs above."
+            exit 1
+          fi
+          echo "Script completed (success or no-URLs-available)."
+
+      # ── 6. Commit and push updated files ─────────────────────────────
+      - name: Commit and push changes
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage the output directory and processed_urls.txt
+          git add output/ processed_urls.txt
+
+          # Only commit if there is actually something new
+          if git diff --cached --quiet; then
+            echo "Nothing to commit — no new post was generated."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "chore: auto-generate Threads post [${TIMESTAMP}]"
+            git push
+          fi
