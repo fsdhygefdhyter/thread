@@ -42,6 +42,7 @@ Tone reference: "Oh great, another 3 AM PagerDuty alert because someone forgot t
 MODEL_CHAIN = [
     "models/gemini-3.5-flash",
     "models/gemini-3.6-flash",
+    "models/gemini-3.5-flash-lite",
     "models/gemini-flash-latest",
 ]
 

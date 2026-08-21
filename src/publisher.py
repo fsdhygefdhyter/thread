@@ -58,16 +58,15 @@ def publish_to_threads(
 
     import requests
 
-    # ── Shorten the URL first ────────────────────────────────────────────
-    short_url = _shorten_url(post_text.split("\n")[-1].strip())
-    # Replace the long URL at the end with the short one
+    # ── Clean up the URL: keep only /dp/ID?tag= for link preview ────────
+    cleaned_url = _clean_amazon_url(post_text.rstrip().split("\n")[-1].strip())
     lines = post_text.rstrip().split("\n")
-    # Find and replace the last URL line
     for i in range(len(lines) - 1, -1, -1):
         if lines[i].strip().startswith("http"):
-            lines[i] = short_url
+            lines[i] = cleaned_url
             break
     post_text = "\n".join(lines)
+    print(f"      URL in post: {cleaned_url}")
 
     # ── Step 1: Create media container ──────────────────────────────────
     container_url = f"https://graph.threads.net/v1.0/{user_id}/threads"
@@ -143,17 +142,22 @@ def publish_to_threads(
             error=f"Failed to publish: {str(e)[:300]}",
         )
 
+def _clean_amazon_url(url: str) -> str:
+    """
+    Keep only /dp/PRODUCTID?tag=affiliate from Amazon URL.
+    This keeps the URL short AND preserves the affiliate tag AND shows product preview.
+    Example: https://www.amazon.com/dp/B0F2937DQQ?tag=thenewssam-20
+    """
+    import re
+    # Extract product ID
+    dp_match = re.search(r'/dp/([A-Z0-9]+)', url)
+    # Extract affiliate tag
+    tag_match = re.search(r'tag=([^&]+)', url)
 
-def _shorten_url(url: str) -> str:
-    """Shorten a URL using TinyURL API. Returns original URL if shortening fails."""
-    import requests
-    try:
-        resp = requests.get(
-            f"https://tinyurl.com/api-create.php?url={url}",
-            timeout=10,
-        )
-        if resp.status_code == 200 and resp.text.startswith("http"):
-            return resp.text.strip()
-    except Exception:
-        pass
+    if dp_match and tag_match:
+        product_id = dp_match.group(1)
+        tag = tag_match.group(1)
+        return f"https://www.amazon.com/dp/{product_id}?tag={tag}"
+
+    # Fallback: return original URL
     return url
