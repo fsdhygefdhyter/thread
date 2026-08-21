@@ -1,0 +1,3 @@
+Nothing ruins a 3 AM post-mortem faster than scrubbing burnt eggs off a cheap pan while your cluster is still recovering.
+
+When I finish fixing production outages caused by someone deleting a production database,
