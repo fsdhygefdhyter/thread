@@ -145,19 +145,19 @@ def publish_to_threads(
 def _clean_amazon_url(url: str) -> str:
     """
     Keep only /dp/PRODUCTID?tag=affiliate from Amazon URL.
-    This keeps the URL short AND preserves the affiliate tag AND shows product preview.
     Example: https://www.amazon.com/dp/B0F2937DQQ?tag=thenewssam-20
     """
     import re
-    # Extract product ID
-    dp_match = re.search(r'/dp/([A-Z0-9]+)', url)
-    # Extract affiliate tag
-    tag_match = re.search(r'tag=([^&]+)', url)
+    from urllib.parse import urlparse, parse_qs
 
-    if dp_match and tag_match:
+    dp_match = re.search(r'/dp/([A-Z0-9]+)', url)
+    # Use parse_qs to correctly extract tag= parameter
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query)
+    tag = params.get("tag", [None])[0]
+
+    if dp_match and tag:
         product_id = dp_match.group(1)
-        tag = tag_match.group(1)
         return f"https://www.amazon.com/dp/{product_id}?tag={tag}"
 
-    # Fallback: return original URL
     return url

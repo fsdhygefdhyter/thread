@@ -25,7 +25,7 @@ Your voice:
 
 Rules for every post:
 1. English ONLY.
-2. Exactly 160-180 words. Count carefully. Do not stop early.
+2. SHORT — maximum 300 characters total (Threads limit is 500, URL takes ~60). Be punchy and tight.
 3. First sentence immediately attacks the pain point — no warm-up, no intro.
 4. Short paragraphs, suitable for Threads (2–4 sentences each).
 5. Naturally introduce the product/solution mid-post without sounding like an ad.
@@ -67,52 +67,80 @@ def generate(url: str, gemini_api_key: str) -> GeneratedPost:
     """
     Generate a Threads post for an Amazon affiliate product URL.
     Gemini writes the post body only; the URL is appended by this function.
+    Post body + URL must be under 440 chars (Threads limit 500, buffer for safety).
+    If over limit, retries up to MAX_CHAR_RETRIES times with stricter prompt.
     """
     if not HAS_GENAI:
         return GeneratedPost(url=url, error="google-genai not installed")
 
     client = genai.Client(api_key=gemini_api_key)
 
-    # Extract product ID hint from URL for Gemini
     import re
     dp_match = re.search(r'/dp/([A-Z0-9]+)', url)
     product_hint = f"Product ID: {dp_match.group(1)}" if dp_match else ""
 
-    user_prompt = f"""Write a Threads post about this Amazon product.
+    # Clean URL for character limit calculation
+    from urllib.parse import urlparse, parse_qs
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query)
+    tag = params.get("tag", [""])[0]
+    clean_url = f"https://www.amazon.com/dp/{dp_match.group(1)}?tag={tag}" if dp_match and tag else url
+    CHAR_LIMIT = 440  # post body limit (500 total - 60 for URL)
+    MAX_CHAR_RETRIES = 3
+
+    def make_prompt(char_limit: int) -> str:
+        return f"""Write a Threads post about this Amazon product.
 
 {product_hint}
 Full URL (for context only, do NOT include in your response): {url}
 
 Use the product ID or URL to identify what the product is (cookware, keyboard, skincare, hard drive, water bottle, backpack, mouse, etc.).
 
-Write EXACTLY 160-180 words. The URL will be added automatically — do NOT put any URL in your response.
-Output ONLY the post body text."""
+STRICT LIMIT: Post body must be under {char_limit} characters total. Keep it short and punchy.
+Do NOT include any URL, hashtags, or word/character counts. Output ONLY the post body text."""
 
     last_error = ""
 
     for model in MODEL_CHAIN:
         try:
             print(f"  Calling Gemini ({model})...")
-            response = client.models.generate_content(
-                model=model,
-                contents=user_prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    temperature=0.85,
-                    max_output_tokens=4096,
-                ),
-            )
-            raw = (response.text or "").strip()
-            if not raw:
-                last_error = f"{model} returned empty response"
-                continue
 
-            # Always append the full affiliate URL at the end
-            post_text = raw.rstrip() + "\n\n" + url
+            # Try up to MAX_CHAR_RETRIES times if over character limit
+            for attempt in range(1, MAX_CHAR_RETRIES + 1):
+                char_limit = CHAR_LIMIT - (attempt - 1) * 40  # tighten limit each retry
+                response = client.models.generate_content(
+                    model=model,
+                    contents=make_prompt(char_limit),
+                    config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM_PROMPT,
+                        temperature=0.85,
+                        max_output_tokens=4096,
+                    ),
+                )
+                raw = (response.text or "").strip()
+                if not raw:
+                    last_error = f"{model} returned empty response"
+                    break
 
-            result = GeneratedPost(url=url, post_text=post_text)
-            print(f"  Generated post: {result.word_count} words")
-            return result
+                body_chars = len(raw)
+                total_chars = body_chars + 2 + len(clean_url)  # 2 for "\n\n"
+                print(f"  Attempt {attempt}: {body_chars} body chars, {total_chars} total")
+
+                if total_chars <= 500:
+                    post_text = raw.rstrip() + "\n\n" + clean_url
+                    result = GeneratedPost(url=url, post_text=post_text)
+                    print(f"  Generated post: {result.word_count} words, {total_chars} chars ✓")
+                    return result
+                else:
+                    print(f"  Over 500 chars, retrying with stricter limit...")
+                    if attempt == MAX_CHAR_RETRIES:
+                        # Last resort: hard truncate at word boundary
+                        max_body = 500 - 2 - len(clean_url)
+                        truncated = raw[:max_body].rsplit(" ", 1)[0] + "..."
+                        post_text = truncated + "\n\n" + clean_url
+                        result = GeneratedPost(url=url, post_text=post_text)
+                        print(f"  Hard truncated to {len(post_text)} chars")
+                        return result
 
         except Exception as e:
             last_error = str(e)
