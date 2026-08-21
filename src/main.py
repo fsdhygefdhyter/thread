@@ -158,6 +158,8 @@ def main() -> int:
     threads_user_id = os.getenv("THREADS_USER_ID")
     if threads_token and threads_user_id:
         print("\n[3/3] Publishing to Threads...")
+        print(f"      User ID: {threads_user_id}")
+        print(f"      Token length: {len(threads_token)}")
         pub_result = publish_to_threads(
             post_text=result.post_text,
             access_token=threads_token,
@@ -166,9 +168,14 @@ def main() -> int:
         if pub_result.success:
             print(f"      Published: {pub_result.post_url}")
         else:
-            print(f"      Publish skipped: {pub_result.error}")
+            print(f"      ERROR publishing to Threads: {pub_result.error}")
+            return 1  # Fail loudly so we can see it in GitHub Actions
     else:
         print("\n[3/3] Threads publishing skipped (credentials not configured).")
+        if not threads_token:
+            print("      Missing: THREADS_ACCESS_TOKEN")
+        if not threads_user_id:
+            print("      Missing: THREADS_USER_ID")
 
     print("\nDone.")
     return 0
