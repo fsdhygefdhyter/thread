@@ -17,14 +17,14 @@ GitHub Actions 自動化系統。每小時執行一次，自動：
 ## 專案結構
 
 ```
-threads_aws/
+thread/
 ├── url.txt                    ← 用戶放 AWS 文章網址（一行一個）
 ├── processed_urls.txt         ← 自動管理，勿手動編輯
 ├── src/
-│   ├── main.py               ← 主程式（讀 URL → 生成 → 存檔 → 更新）
+│   ├── main.py               ← 主程式（讀 URL → 生成 → 發布 → 存檔 → 更新）
 │   ├── scraper.py            ← 抓取文章內容（trafilatura + BS4）
 │   ├── generator.py          ← Gemini 貼文生成（臺灣資深工程師風格）
-│   └── publisher.py          ← Threads 發布 stub（待實做）
+│   └── publisher.py          ← Threads API 發布（已啟用）
 ├── output/                   ← 生成的貼文存這裡
 ├── .github/workflows/
 │   └── hourly.yml            ← GitHub Actions 每小時執行
@@ -39,10 +39,12 @@ threads_aws/
 | 變數 | 說明 |
 |------|------|
 | GEMINI_API_KEY | Google Gemini API Key |
+| THREADS_ACCESS_TOKEN | Threads API access token |
+| THREADS_USER_ID | Threads 用戶 ID |
 
 **本地運行**：複製 `.env.example` 為 `.env`，填入金鑰。
 
-**GitHub Actions**：在 repo 的 **Settings → Secrets and variables → Actions** 新增名為 `GEMINI_API_KEY` 的 secret。
+**GitHub Actions**：所有三個 secrets 已在 repo 設定。
 
 ---
 
@@ -54,7 +56,7 @@ threads_aws/
 # 安裝依賴
 pip install -r requirements.txt
 
-# 執行一次
+# 執行一次（生成 + 發布）
 python src/main.py
 ```
 
@@ -62,8 +64,11 @@ python src/main.py
 
 1. 把 AWS 文章網址加進 `url.txt`（一行一個）
 2. Push 到 GitHub
-3. 在 repo **Settings → Secrets and variables → Actions** 新增 `GEMINI_API_KEY` secret
-4. GitHub Actions 會每小時自動執行
+3. GitHub Actions 會每小時自動執行
+   - 生成 Threads 貼文
+   - 自動發布到你的 Threads 帳號
+   - 存檔到 `output/`
+   - 更新 `processed_urls.txt`
 
 **手動觸發**：repo → **Actions** → **Generate Threads Post** → **Run workflow**
 
@@ -104,40 +109,31 @@ python src/main.py
 
 ---
 
-## Threads API 整合（待啟用）
+## Threads API 整合
 
-**狀態：⏳ 準備好，暫未啟用**
+**狀態：✅ 已完全啟用**
 
-### 目前狀態
-
-- ✅ 系統已完全架構好，可隨時啟用
-- ✅ Threads credentials 已在 GitHub Secrets 配置
-- ⏳ 發布功能暫停用（stub 模式）——貼文只會存到 `output/` 不會發布
-
-### 貼文流程
+### 自動流程
 
 每次執行時：
 1. 讀一個未處理的 AWS 文章 URL
-2. 抓取內容 + 用 Gemini 生成 Threads 貼文
-3. 存檔到 `output/YYYY-MM-DD-HH-MM.txt`
-4. 更新 `processed_urls.txt`
-5. Commit & push 到 GitHub
-6. **（目前停用）** 發布到 Threads
+2. 抓取內容 + 用 Gemini 生成 Threads 貼文（150–200 字）
+3. **自動發布到你的 Threads 帳號**
+4. 存檔到 `output/YYYY-MM-DD-HH-MM.txt`
+5. 更新 `processed_urls.txt`
+6. Commit & push 到 GitHub
 
-### 何時啟用 Threads 發布
+### 測試結果
 
-當準備好正式發布時：
+已成功發布 2 篇測試貼文：
+- 2026-08-21 13:54 — FitVille 鞋子（https://www.threads.net/t/17892416439603736）
+- 2026-08-21 13:59 — CeraVe 保濕乳（https://www.threads.net/t/18074160674389502）
 
-1. 在 `src/publisher.py` 實做 API 呼叫（git history commit `2e60899` 有完整實做）
-2. 確認 `src/main.py` Threads 發布區塊已啟用
-3. Push 到 GitHub
-4. 下個執行週期起，貼文會自動發布到你的 Threads 帳號
-
-### Token 說明
+### 憑證設定
 
 - **User ID**: `28106974412248485`
-- **Access Token**: 已在 GitHub Secrets 設定
 - **App ID**: `1536373420985324`
+- **Access Token**: 已在 GitHub Secrets + 本地 `.env` 設定
 
 ### Access Token 更新
 
@@ -145,6 +141,7 @@ Threads API token 有效期約 60 天。快過期時：
 1. 去 https://developers.facebook.com/tools/explorer
 2. 重新產生新 token
 3. 更新 GitHub Secrets 中的 `THREADS_ACCESS_TOKEN`
+4. 本地 `.env` 同步更新
 
 系統會自動使用新 token。
 
