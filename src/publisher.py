@@ -58,6 +58,17 @@ def publish_to_threads(
 
     import requests
 
+    # ── Shorten the URL first ────────────────────────────────────────────
+    short_url = _shorten_url(post_text.split("\n")[-1].strip())
+    # Replace the long URL at the end with the short one
+    lines = post_text.rstrip().split("\n")
+    # Find and replace the last URL line
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].strip().startswith("http"):
+            lines[i] = short_url
+            break
+    post_text = "\n".join(lines)
+
     # ── Step 1: Create media container ──────────────────────────────────
     container_url = f"https://graph.threads.net/v1.0/{user_id}/threads"
     container_payload = {
@@ -131,3 +142,18 @@ def publish_to_threads(
             success=False,
             error=f"Failed to publish: {str(e)[:300]}",
         )
+
+
+def _shorten_url(url: str) -> str:
+    """Shorten a URL using TinyURL API. Returns original URL if shortening fails."""
+    import requests
+    try:
+        resp = requests.get(
+            f"https://tinyurl.com/api-create.php?url={url}",
+            timeout=10,
+        )
+        if resp.status_code == 200 and resp.text.startswith("http"):
+            return resp.text.strip()
+    except Exception:
+        pass
+    return url
