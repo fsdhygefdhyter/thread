@@ -168,25 +168,22 @@ def main() -> int:
     mark_processed(PROCESSED_FILE, target_url)
     print(f"      Marked as processed: {target_url}")
 
-    # ── Step 8 (Future): Publish to Threads ───────────────────────────
-    # Uncomment the block below once you have Threads API credentials.
-    # Add THREADS_ACCESS_TOKEN and THREADS_USER_ID to GitHub Secrets.
-    #
-    # threads_token   = os.getenv("THREADS_ACCESS_TOKEN")
-    # threads_user_id = os.getenv("THREADS_USER_ID")
-    # if threads_token and threads_user_id:
-    #     print("\n[4/4] Publishing to Threads...")
-    #     pub_result = publish_to_threads(
-    #         post_text=result.post_text,
-    #         access_token=threads_token,
-    #         user_id=threads_user_id,
-    #     )
-    #     if pub_result.success:
-    #         print(f"      Published: {pub_result.post_url}")
-    #     else:
-    #         print(f"      Publish failed: {pub_result.error}")
-    # else:
-    #     print("\n[4/4] Threads publishing skipped (no credentials configured).")
+    # ── Step 8 (Now enabled): Publish to Threads ──────────────────────
+    threads_token   = os.getenv("THREADS_ACCESS_TOKEN")
+    threads_user_id = os.getenv("THREADS_USER_ID")
+    if threads_token and threads_user_id:
+        print("\n[4/4] Publishing to Threads...")
+        pub_result = publish_to_threads(
+            post_text=result.post_text,
+            access_token=threads_token,
+            user_id=threads_user_id,
+        )
+        if pub_result.success:
+            print(f"      Published: {pub_result.post_url}")
+        else:
+            print(f"      Publish failed: {pub_result.error}")
+    else:
+        print("\n[4/4] Threads publishing skipped (credentials not configured).")
 
     print("\nDone.")
     return 0

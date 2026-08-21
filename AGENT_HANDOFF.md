@@ -99,45 +99,36 @@ python src/main.py
 
 **已設定的 Secrets:**
 - `GEMINI_API_KEY` ✅
+- `THREADS_ACCESS_TOKEN` ✅
+- `THREADS_USER_ID` ✅
 
 ---
 
-## 未來：Threads API 整合
+## Threads API 整合
 
-**狀態：準備中**
+**狀態：✅ 已啟用**
 
-當你有 Threads API 憑證時：
+系統現在會自動：
+1. 每小時讀一個未處理的 AWS 文章 URL
+2. 抓取內容 + 用 Gemini 生成 Threads 貼文
+3. **自動發布到你的 Threads 帳號**
+4. 存檔到 `output/` 目錄
+5. 更新 `processed_urls.txt`
 
-### 取得憑證步驟
+### Token 說明
 
-1. **Meta 開發者帳號**
-   - 應用程式 ID: `1536373420985324`
-   - 應用程式密鑰: `DCA361az52DC@@`
+- **User ID**: `28106974412248485`
+- **Access Token**: 已在 GitHub Secrets 設定，自動更新
+- **App ID**: `1536373420985324`
 
-2. **取得 User ID 和 Access Token**
-   - 去 https://developers.facebook.com/tools/explorer
-   - 選你的應用程式
-   - 執行 `GET /me?fields=id,username`
-   - 記下 User ID（形式是 `123456789`）
+### Access Token 更新
 
-3. **產生長期 Access Token**
-   - 在 Explorer 取得的 token 有效期只有 1 小時
-   - 需要轉換成長期 token（60 天有效）
-   - 或者用 OAuth 流程取得永久 token
+Threads API token 有效期約 60 天。快過期時：
+1. 去 https://developers.facebook.com/tools/explorer
+2. 重新產生新 token
+3. 更新 GitHub Secrets 中的 `THREADS_ACCESS_TOKEN`
 
-### 啟用 Threads 發布
-
-當你有 User ID 和 Access Token 後：
-
-1. 新增兩個 GitHub Secrets：
-   - `THREADS_ACCESS_TOKEN` = 你的 access token
-   - `THREADS_USER_ID` = 你的 Threads 用戶 ID
-
-2. 在 `src/publisher.py` 實做 API 呼叫（已有完整註解說明步驟）
-
-3. 在 `src/main.py` 取消註解第 8 步的 Threads 發布區塊（約 95 行）
-
-不需要重寫任何東西。
+系統會自動使用新 token。
 
 ---
 
