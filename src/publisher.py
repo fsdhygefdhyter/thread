@@ -32,38 +32,102 @@ def publish_to_threads(
     """
     Publish a text post to Threads via the Meta Graph API.
 
-    Currently disabled (stub mode) — generates the post but does NOT publish.
-
     Args:
         post_text:    The full text of the Threads post (150–200 words + URL).
         access_token: Threads API access token (from GitHub Secret THREADS_ACCESS_TOKEN).
         user_id:      Threads user ID (from GitHub Secret THREADS_USER_ID).
 
     Returns:
-        ThreadsPublishResult with success=False and a message.
+        ThreadsPublishResult with success/error and post details if successful.
 
-    Implementation (ready to enable):
-        Step 1 — Create a media container:
-            POST https://graph.threads.net/v1.0/{user_id}/threads
-                media_type=TEXT
-                text={post_text}
-                access_token={access_token}
-            Returns: { "id": "<container_id>" }
-
-        Step 2 — Publish the container:
-            POST https://graph.threads.net/v1.0/{user_id}/threads_publish
-                creation_id={container_id}
-                access_token={access_token}
-            Returns: { "id": "<post_id>" }
+    Flow:
+        Step 1 — Create a media container with the post text
+        Step 2 — Publish the container to make it live
     """
-    # ── STUB MODE: Do NOT publish yet ──────────────────────────────────
-    return ThreadsPublishResult(
-        success=False,
-        error="Threads publishing is currently DISABLED (stub mode). Post saved to output/ only.",
-    )
-    # ────────────────────────────────────────────────────────────────────
-    # 
-    # TO ENABLE: uncomment the implementation code below and remove this stub return.
-    # The full implementation with API calls is in git history (commit 2e60899).
-    #
-    # ────────────────────────────────────────────────────────────────────
+    if not access_token or not user_id:
+        return ThreadsPublishResult(
+            success=False,
+            error="Missing THREADS_ACCESS_TOKEN or THREADS_USER_ID",
+        )
+
+    if not post_text or len(post_text.strip()) == 0:
+        return ThreadsPublishResult(
+            success=False,
+            error="Post text is empty",
+        )
+
+    import requests
+
+    # ── Step 1: Create media container ──────────────────────────────────
+    container_url = f"https://graph.threads.net/v1.0/{user_id}/threads"
+    container_payload = {
+        "media_type": "TEXT",
+        "text": post_text,
+        "access_token": access_token,
+    }
+
+    try:
+        resp_container = requests.post(container_url, data=container_payload, timeout=30)
+        resp_container.raise_for_status()
+        container_data = resp_container.json()
+
+        if "error" in container_data:
+            error_msg = container_data["error"].get("message", "Unknown error")
+            return ThreadsPublishResult(
+                success=False,
+                error=f"Failed to create media container: {error_msg}",
+            )
+
+        container_id = container_data.get("id")
+        if not container_id:
+            return ThreadsPublishResult(
+                success=False,
+                error="No container ID returned from Threads API",
+            )
+
+    except requests.exceptions.RequestException as e:
+        return ThreadsPublishResult(
+            success=False,
+            error=f"Failed to create container: {str(e)[:300]}",
+        )
+
+    # ── Step 2: Publish the container ───────────────────────────────────
+    publish_url = f"https://graph.threads.net/v1.0/{user_id}/threads_publish"
+    publish_payload = {
+        "creation_id": container_id,
+        "access_token": access_token,
+    }
+
+    try:
+        resp_publish = requests.post(publish_url, data=publish_payload, timeout=30)
+        resp_publish.raise_for_status()
+        publish_data = resp_publish.json()
+
+        if "error" in publish_data:
+            error_msg = publish_data["error"].get("message", "Unknown error")
+            return ThreadsPublishResult(
+                success=False,
+                error=f"Failed to publish: {error_msg}",
+            )
+
+        post_id = publish_data.get("id")
+        if not post_id:
+            return ThreadsPublishResult(
+                success=False,
+                error="No post ID returned from Threads API",
+            )
+
+        # Construct the Threads post URL
+        post_url = f"https://www.threads.net/t/{post_id}"
+
+        return ThreadsPublishResult(
+            success=True,
+            post_id=post_id,
+            post_url=post_url,
+        )
+
+    except requests.exceptions.RequestException as e:
+        return ThreadsPublishResult(
+            success=False,
+            error=f"Failed to publish: {str(e)[:300]}",
+        )
