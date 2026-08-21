@@ -6,6 +6,7 @@ Uses trafilatura as primary extractor, BeautifulSoup as fallback.
 """
 
 import requests
+import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -22,15 +23,26 @@ except ImportError:
     HAS_BS4 = False
 
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-}
+# Rotate user agents to avoid being blocked
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+]
+
+def get_headers():
+    """Return request headers with rotating user agent."""
+    import random
+    return {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    }
 
 # Minimum characters of text content for a valid scrape
 MIN_TEXT_LENGTH = 150
@@ -53,61 +65,83 @@ class ScrapedArticle:
         return f"ScrapedArticle({self.domain} | {status} | {len(self.text)} chars)"
 
 
-def scrape(url: str, timeout: int = 20) -> ScrapedArticle:
+def scrape(url: str, timeout: int = 20, max_retries: int = 3) -> ScrapedArticle:
     """
     Fetch and extract the main text content from a URL.
+    Retries up to max_retries times with exponential backoff.
     Returns a ScrapedArticle dataclass.
     """
     domain = urlparse(url).netloc
     article = ScrapedArticle(url=url, domain=domain)
 
-    # ── Fetch HTML ────────────────────────────────────────────────────
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-        resp.raise_for_status()
-        raw_html = resp.text
-    except requests.exceptions.Timeout:
-        article.error = f"Request timed out after {timeout}s"
-        return article
-    except requests.exceptions.HTTPError as e:
-        article.error = f"HTTP error: {e.response.status_code}"
-        return article
-    except requests.exceptions.RequestException as e:
-        article.error = f"Request failed: {e}"
-        return article
+    # ── Fetch HTML with retries ───────────────────────────────────────
+    for attempt in range(1, max_retries + 1):
+        try:
+            headers = get_headers()
+            resp = requests.get(url, headers=headers, timeout=timeout, allow_redirects=True)
+            resp.raise_for_status()
+            raw_html = resp.text
+            break  # Success, exit retry loop
+        except requests.exceptions.Timeout:
+            article.error = f"Request timed out after {timeout}s (attempt {attempt}/{max_retries})"
+            if attempt < max_retries:
+                time.sleep(2 ** attempt)  # Exponential backoff
+                continue
+            return article
+        except requests.exceptions.HTTPError as e:
+            article.error = f"HTTP {e.response.status_code} (attempt {attempt}/{max_retries})"
+            if attempt < max_retries and e.response.status_code in [429, 503, 502]:
+                time.sleep(2 ** attempt)  # Retry on rate limit / server error
+                continue
+            return article
+        except requests.exceptions.RequestException as e:
+            article.error = f"Request failed: {str(e)[:100]} (attempt {attempt}/{max_retries})"
+            if attempt < max_retries:
+                time.sleep(2 ** attempt)
+                continue
+            return article
+    else:
+        return article  # All retries exhausted
 
     # ── Extract with trafilatura (preferred) ──────────────────────────
     if HAS_TRAFILATURA:
-        extracted = trafilatura.extract(
-            raw_html,
-            include_comments=False,
-            include_tables=True,
-            no_fallback=False,
-            favor_precision=True,
-            output_format="txt",
-        )
-        meta = trafilatura.extract_metadata(raw_html)
-        if extracted and len(extracted.strip()) >= MIN_TEXT_LENGTH:
-            article.text = extracted.strip()
-            if meta:
-                article.title = meta.title or ""
-            if not article.title:
-                article.title = _extract_title_bs4(raw_html) if HAS_BS4 else ""
-            return article
+        try:
+            extracted = trafilatura.extract(
+                raw_html,
+                include_comments=False,
+                include_tables=True,
+                no_fallback=False,
+                favor_precision=True,
+                output_format="txt",
+            )
+            meta = trafilatura.extract_metadata(raw_html)
+            if extracted and len(extracted.strip()) >= MIN_TEXT_LENGTH:
+                article.text = extracted.strip()
+                if meta:
+                    article.title = meta.title or ""
+                if not article.title:
+                    article.title = _extract_title_bs4(raw_html) if HAS_BS4 else ""
+                return article
+        except Exception as e:
+            pass  # Fall through to BS4
 
     # ── Fallback: BeautifulSoup ───────────────────────────────────────
     if HAS_BS4:
-        article.title = _extract_title_bs4(raw_html)
-        article.text = _extract_text_bs4(raw_html)
-        if article.is_ok:
-            return article
+        try:
+            article.title = _extract_title_bs4(raw_html)
+            article.text = _extract_text_bs4(raw_html)
+            if article.is_ok:
+                return article
+        except Exception as e:
+            article.error = f"BeautifulSoup extraction failed: {str(e)[:50]}"
 
     # ── Nothing worked ────────────────────────────────────────────────
     if not article.text:
-        article.error = (
-            "Could not extract text content. "
-            "The page may require JavaScript, be behind a paywall, or be empty."
-        )
+        if not article.error:
+            article.error = (
+                "Could not extract text content. "
+                "The page may require JavaScript, be behind a paywall, or be empty."
+            )
     return article
 
 
