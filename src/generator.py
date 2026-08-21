@@ -42,10 +42,11 @@ Tone reference: "Oh great, another 3 AM PagerDuty alert because someone forgot t
 """
 
 # Gemini models to try in order (fallback chain)
+# Using latest available models from Gemini API (as of 2026-08)
 MODEL_CHAIN = [
+    "models/gemini-3.7-flash",
     "models/gemini-3.6-flash",
-    "models/gemini-1.5-flash",
-    "models/gemini-1.5-flash-8b",
+    "models/gemini-3.5-flash",
 ]
 
 
