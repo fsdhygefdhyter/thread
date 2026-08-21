@@ -168,7 +168,10 @@ def main() -> int:
     mark_processed(PROCESSED_FILE, target_url)
     print(f"      Marked as processed: {target_url}")
 
-    # ── Step 8 (Now enabled): Publish to Threads ──────────────────────
+    # ── Step 8 (Future): Publish to Threads ───────────────────────────
+    # Currently DISABLED (stub mode).
+    # To enable: uncomment below and ensure THREADS_ACCESS_TOKEN + THREADS_USER_ID are in GitHub Secrets.
+    #
     threads_token   = os.getenv("THREADS_ACCESS_TOKEN")
     threads_user_id = os.getenv("THREADS_USER_ID")
     if threads_token and threads_user_id:
@@ -181,7 +184,7 @@ def main() -> int:
         if pub_result.success:
             print(f"      Published: {pub_result.post_url}")
         else:
-            print(f"      Publish failed: {pub_result.error}")
+            print(f"      Publish skipped: {pub_result.error}")
     else:
         print("\n[4/4] Threads publishing skipped (credentials not configured).")
 

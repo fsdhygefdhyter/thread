@@ -104,21 +104,39 @@ python src/main.py
 
 ---
 
-## Threads API 整合
+## Threads API 整合（待啟用）
 
-**狀態：✅ 已啟用**
+**狀態：⏳ 準備好，暫未啟用**
 
-系統現在會自動：
-1. 每小時讀一個未處理的 AWS 文章 URL
+### 目前狀態
+
+- ✅ 系統已完全架構好，可隨時啟用
+- ✅ Threads credentials 已在 GitHub Secrets 配置
+- ⏳ 發布功能暫停用（stub 模式）——貼文只會存到 `output/` 不會發布
+
+### 貼文流程
+
+每次執行時：
+1. 讀一個未處理的 AWS 文章 URL
 2. 抓取內容 + 用 Gemini 生成 Threads 貼文
-3. **自動發布到你的 Threads 帳號**
-4. 存檔到 `output/` 目錄
-5. 更新 `processed_urls.txt`
+3. 存檔到 `output/YYYY-MM-DD-HH-MM.txt`
+4. 更新 `processed_urls.txt`
+5. Commit & push 到 GitHub
+6. **（目前停用）** 發布到 Threads
+
+### 何時啟用 Threads 發布
+
+當準備好正式發布時：
+
+1. 在 `src/publisher.py` 實做 API 呼叫（git history commit `2e60899` 有完整實做）
+2. 確認 `src/main.py` Threads 發布區塊已啟用
+3. Push 到 GitHub
+4. 下個執行週期起，貼文會自動發布到你的 Threads 帳號
 
 ### Token 說明
 
 - **User ID**: `28106974412248485`
-- **Access Token**: 已在 GitHub Secrets 設定，自動更新
+- **Access Token**: 已在 GitHub Secrets 設定
 - **App ID**: `1536373420985324`
 
 ### Access Token 更新
