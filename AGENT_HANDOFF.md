@@ -9,11 +9,12 @@
 ## 目前狀態（2026-08-21）
 
 **✅ 完全運作中**
-- GitHub Actions cron `*/5 * * * *` 每 5 分鐘自動執行
-- Gemini 生成貼文（字元卡控 ≤ 500）
+- GitHub Actions cron `*/45 * * * *` 每 45 分鐘自動執行（每天約 32 篇）
+- Gemini 生成貼文（字元卡控 ≤ 500，超過自動重試最多 3 次）
 - Threads API 發布成功
 - Amazon affiliate URL 保留 `tag=thenewssam-20`
 - 商品縮圖顯示正常（使用 `amazon.com/dp/ID?tag=` 格式）
+- url.txt 共 43 個 URL，已處理約 12 個
 
 ---
 
@@ -122,8 +123,16 @@ Token 每 60 天過期，需要手動更新：
 
 ## 新增 URL 方式
 
-直接在 `url.txt` 新增一行 Amazon affiliate URL，然後 git push。
-系統會自動在下次執行時處理新的 URL。
+直接在 `url.txt` 新增一行 Amazon affiliate URL，然後用終端機 push：
+
+```bash
+cd /Users/sam/Desktop/程市區/threads_aws
+git add url.txt
+git commit -m "add: new affiliate URLs"
+git push
+```
+
+系統會自動在下次執行時處理新的 URL。已處理過的在 `processed_urls.txt`，不會重複發。
 
 ---
 
