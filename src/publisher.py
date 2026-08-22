@@ -71,7 +71,7 @@ def publish_to_threads(
 
     # ── Step 2: Reply with URL + disclosure ─────────────────────────────
     import time
-    time.sleep(10)  # Wait for post to be available via API before replying
+    time.sleep(15)  # Increased wait time for API sync before replying
     reply_id = _create_and_publish_reply(reply_text, post_id, access_token, user_id)
     if isinstance(reply_id, str) and reply_id.startswith("ERROR:"):
         print(f"      Warning: reply failed: {reply_id}")
@@ -85,6 +85,7 @@ def publish_to_threads(
 def _create_and_publish(text: str, access_token: str, user_id: str) -> str:
     """Create container and publish. Returns post_id or 'ERROR: ...'"""
     import requests
+    import time
 
     # Create container
     resp = requests.post(
@@ -104,24 +105,34 @@ def _create_and_publish(text: str, access_token: str, user_id: str) -> str:
     if not container_id:
         return "ERROR: no container ID"
 
-    # Publish
-    resp2 = requests.post(
-        f"https://graph.threads.net/v1.0/{user_id}/threads_publish",
-        data={"creation_id": container_id, "access_token": access_token},
-        timeout=30,
-    )
-    try:
-        resp2.raise_for_status()
-    except Exception:
-        return f"ERROR: publish failed: {resp2.text[:200]}"
+    # Publish with retry logic for temporary API failures
+    for attempt in range(3):  # Retry up to 3 times
+        resp2 = requests.post(
+            f"https://graph.threads.net/v1.0/{user_id}/threads_publish",
+            data={"creation_id": container_id, "access_token": access_token},
+            timeout=30,
+        )
+        try:
+            resp2.raise_for_status()
+        except Exception:
+            if attempt < 2:  # If not the last attempt
+                time.sleep(5)  # Wait 5 seconds before retry
+                continue
+            return f"ERROR: publish failed: {resp2.text[:200]}"
 
-    data2 = resp2.json()
-    if "error" in data2:
-        return f"ERROR: {data2['error'].get('message', 'unknown')}"
-    post_id = data2.get("id")
-    if not post_id:
-        return "ERROR: no post ID"
-    return post_id
+        data2 = resp2.json()
+        if "error" in data2:
+            error_msg = data2['error'].get('message', 'unknown')
+            if attempt < 2 and "does not exist" in error_msg.lower():
+                time.sleep(5)  # Wait and retry for temporary container issues
+                continue
+            return f"ERROR: {error_msg}"
+        post_id = data2.get("id")
+        if not post_id:
+            return "ERROR: no post ID"
+        return post_id
+
+    return "ERROR: publish failed after retries"
 
 
 def _create_and_publish_reply(text: str, reply_to_id: str, access_token: str, user_id: str) -> str:
