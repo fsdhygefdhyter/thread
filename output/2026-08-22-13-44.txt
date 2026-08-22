@@ -1,0 +1,7 @@
+Another 3 AM disk full alert because junior devs stored node_modules on the root partition. Classic. 
+
+Stop crying to me about S3 egress fees and just grab this JIYINGDUO portable external drive to dump your logs. It actually holds data without randomly corrupting your life. 
+
+Link in the comments below.
+---REPLY---
+https://www.amazon.com/JIYINGDUO-External-Drive-Portable-Storage/dp/B0H8ZFNP59?tag=thenewssam-20&linkId=3c171c57ae8d69419066d15ac416c21a&linkCode=ll2
