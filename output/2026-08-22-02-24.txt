@@ -1,0 +1,7 @@
+Clicking through the AWS Console to delete 500 untagged EBS volumes is how carpal tunnel wins. Stop doing ClickOps with a trash office mouse. 
+
+The Logitech G502 HERO has 11 programmable buttons. Map them to force-refresh CloudWatch or run custom bash scripts. 
+
+Buy it before your wrist dies like our production DB. 🖱️
+
+https://www.amazon.com/dp/B07GBZ4Q68?tag=thenewssam-20
