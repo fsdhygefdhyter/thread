@@ -4,6 +4,7 @@ on:
   # Run every 5 minutes for testing
   schedule:
     - cron: "*/5 * * * *"
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
 
   # Allow manual trigger from GitHub Actions tab
   workflow_dispatch:
