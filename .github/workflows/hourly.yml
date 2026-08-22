@@ -3,7 +3,7 @@ name: Generate Threads Post
 on:
   # Run every 45 minutes
   schedule:
-    - cron: "*/45 * * * *"
+    - cron: "0 */3 * * *"
 
   # Allow manual trigger from GitHub Actions tab
   workflow_dispatch:
