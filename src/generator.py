@@ -79,12 +79,7 @@ def generate(url: str, gemini_api_key: str) -> GeneratedPost:
     dp_match = re.search(r'/dp/([A-Z0-9]+)', url)
     product_hint = f"Product ID: {dp_match.group(1)}" if dp_match else ""
 
-    # Clean URL for character limit calculation
-    from urllib.parse import urlparse, parse_qs
-    parsed = urlparse(url)
-    params = parse_qs(parsed.query)
-    tag = params.get("tag", [""])[0]
-    clean_url = f"https://www.amazon.com/dp/{dp_match.group(1)}?tag={tag}" if dp_match and tag else url
+    # Use full URL for affiliate tracking
     CHAR_LIMIT = 440  # post body limit (500 total - 60 for URL)
     MAX_CHAR_RETRIES = 3
 
@@ -126,21 +121,21 @@ STRICT RULES:
                     break
 
                 body_chars = len(raw)
-                total_chars = body_chars + 2 + len(clean_url)  # 2 for "\n\n"
+                total_chars = body_chars + 2 + len(url)  # 2 for "\n\n"
                 print(f"  Attempt {attempt}: {body_chars} body chars, {total_chars} total")
 
                 if total_chars <= 500:
                     # Format: main post body + separator + URL for reply
-                    post_text = raw.rstrip() + "\n---REPLY---\n" + clean_url
+                    post_text = raw.rstrip() + "\n---REPLY---\n" + url
                     result = GeneratedPost(url=url, post_text=post_text)
                     print(f"  Generated post: {result.word_count} words, {body_chars} chars ✓")
                     return result
                 else:
                     print(f"  Over 500 chars ({total_chars}), retrying with stricter limit...")
                     if attempt == MAX_CHAR_RETRIES:
-                        max_body = 500 - 2 - len(clean_url)
+                        max_body = 500 - 2 - len(url)
                         truncated = raw[:max_body].rsplit(" ", 1)[0] + "..."
-                        post_text = truncated + "\n---REPLY---\n" + clean_url
+                        post_text = truncated + "\n---REPLY---\n" + url
                         result = GeneratedPost(url=url, post_text=post_text)
                         print(f"  Hard truncated to {len(truncated)} chars")
                         return result
