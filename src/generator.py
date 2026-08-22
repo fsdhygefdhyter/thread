@@ -96,8 +96,11 @@ Full URL (for context only, do NOT include in your response): {url}
 
 Use the product ID or URL to identify what the product is (cookware, keyboard, skincare, hard drive, water bottle, backpack, mouse, etc.).
 
-STRICT LIMIT: Post body must be under {char_limit} characters total. Keep it short and punchy.
-Do NOT include any URL, hashtags, or word/character counts. Output ONLY the post body text."""
+STRICT RULES:
+1. Post body must be under {char_limit} characters total.
+2. Do NOT include any URL or link anywhere in the post.
+3. End the post with a CTA directing readers to the purchase link in the comments, e.g. "Link in the comments below." or "Check the comment for the link."
+4. Do NOT count or number anything. Output ONLY the post body text."""
 
     last_error = ""
 
@@ -127,19 +130,19 @@ Do NOT include any URL, hashtags, or word/character counts. Output ONLY the post
                 print(f"  Attempt {attempt}: {body_chars} body chars, {total_chars} total")
 
                 if total_chars <= 500:
-                    post_text = raw.rstrip() + "\n\n" + clean_url
+                    # Format: main post body + separator + URL for reply
+                    post_text = raw.rstrip() + "\n---REPLY---\n" + clean_url
                     result = GeneratedPost(url=url, post_text=post_text)
-                    print(f"  Generated post: {result.word_count} words, {total_chars} chars ✓")
+                    print(f"  Generated post: {result.word_count} words, {body_chars} chars ✓")
                     return result
                 else:
-                    print(f"  Over 500 chars, retrying with stricter limit...")
+                    print(f"  Over 500 chars ({total_chars}), retrying with stricter limit...")
                     if attempt == MAX_CHAR_RETRIES:
-                        # Last resort: hard truncate at word boundary
                         max_body = 500 - 2 - len(clean_url)
                         truncated = raw[:max_body].rsplit(" ", 1)[0] + "..."
-                        post_text = truncated + "\n\n" + clean_url
+                        post_text = truncated + "\n---REPLY---\n" + clean_url
                         result = GeneratedPost(url=url, post_text=post_text)
-                        print(f"  Hard truncated to {len(post_text)} chars")
+                        print(f"  Hard truncated to {len(truncated)} chars")
                         return result
 
         except Exception as e:
