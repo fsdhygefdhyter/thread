@@ -71,11 +71,12 @@ def publish_to_threads(
 
     # ── Step 2: Reply with URL + disclosure ─────────────────────────────
     import time
-    time.sleep(15)  # Increased wait time for API sync before replying
+    time.sleep(30)  # Increased wait time for API sync before replying
     reply_id = _create_and_publish_reply(reply_text, post_id, access_token, user_id)
     if isinstance(reply_id, str) and reply_id.startswith("ERROR:"):
-        print(f"      Warning: reply failed: {reply_id}")
-        # Still consider success since main post went through
+        print(f"      ERROR: reply failed: {reply_id}")
+        # Consider it as partial success since main post went through
+        return ThreadsPublishResult(success=False, post_id=post_id, post_url=post_url, error=f"Reply failed: {reply_id}")
     else:
         print(f"      Reply published: https://www.threads.net/t/{reply_id}")
 
