@@ -71,14 +71,22 @@ def publish_to_threads(
 
     # ── Step 2: Reply with URL + disclosure ─────────────────────────────
     import time
-    time.sleep(30)  # Increased wait time for API sync before replying
-    reply_id = _create_and_publish_reply(reply_text, post_id, access_token, user_id)
-    if isinstance(reply_id, str) and reply_id.startswith("ERROR:"):
-        print(f"      ERROR: reply failed: {reply_id}")
-        # Consider it as partial success since main post went through
-        return ThreadsPublishResult(success=False, post_id=post_id, post_url=post_url, error=f"Reply failed: {reply_id}")
-    else:
-        print(f"      Reply published: https://www.threads.net/t/{reply_id}")
+    time.sleep(45)  # Increased wait time for API sync before replying
+
+    # Add retry logic for reply publication
+    for attempt in range(3):
+        reply_id = _create_and_publish_reply(reply_text, post_id, access_token, user_id)
+        if isinstance(reply_id, str) and reply_id.startswith("ERROR:"):
+            if "does not exist" in reply_id.lower() and attempt < 2:
+                print(f"      Reply attempt {attempt + 1} failed: post not yet available, retrying...")
+                time.sleep(20)  # Wait longer before retry
+                continue
+            print(f"      ERROR: reply failed: {reply_id}")
+            # Consider it as partial success since main post went through
+            return ThreadsPublishResult(success=False, post_id=post_id, post_url=post_url, error=f"Reply failed: {reply_id}")
+        else:
+            print(f"      Reply published: https://www.threads.net/t/{reply_id}")
+            break
 
     return ThreadsPublishResult(success=True, post_id=post_id, post_url=post_url)
 
