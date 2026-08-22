@@ -8,11 +8,6 @@ on:
   # Allow manual trigger from GitHub Actions tab
   workflow_dispatch:
 
-  # Trigger on any push to main
-  push:
-    branches:
-      - main
-
 permissions:
   contents: write   # needed to commit and push generated files
 
