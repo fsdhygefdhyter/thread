@@ -180,15 +180,5 @@ def _create_and_publish_reply(text: str, reply_to_id: str, access_token: str, us
 
 
 def _clean_amazon_url(url: str) -> str:
-    """Keep only /dp/ID?tag= from Amazon URL."""
-    import re
-    from urllib.parse import urlparse, parse_qs
-
-    dp_match = re.search(r'/dp/([A-Z0-9]+)', url)
-    parsed = urlparse(url)
-    params = parse_qs(parsed.query)
-    tag = params.get("tag", [None])[0]
-
-    if dp_match and tag:
-        return f"https://www.amazon.com/dp/{dp_match.group(1)}?tag={tag}"
+    """Return the URL as-is to preserve all affiliate tracking parameters."""
     return url
