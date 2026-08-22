@@ -1,9 +1,9 @@
 name: Generate Threads Post
 
 on:
-  # Run every 5 minutes for testing
+  # Run every hour (new account limit workaround)
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '0 * * * *'
 
   # Allow manual trigger from GitHub Actions tab
   workflow_dispatch:
