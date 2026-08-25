@@ -1,0 +1,7 @@
+Your cloud bill just spiked because some genius stored three terabytes of raw logs on S3 instead of deleting them. 
+
+Save your company's money and grab a Seagate Portable External Hard Drive to dump that garbage locally before finance cries again. 
+
+Check the comment for the link.
+---REPLY---
+https://www.amazon.com/Seagate-Portable-External-Hard-Drive/dp/B07CRG94G3?tag=thenewssam-20&linkId=2d0a4054dec96efbaabc39a9626a4f69&linkCode=ll2
