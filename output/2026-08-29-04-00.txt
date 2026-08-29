@@ -1,0 +1,7 @@
+Oh great, another 3 AM PagerDuty alert because my cheap mouse died right during a production rollback. Classic. 
+
+At least the GravaStar Mercury Pro is lightweight enough to throw across the server room when Terraform destroys the wrong VPC again. It actually tracks well while I panic-type.
+
+Check the comment for the link.
+---REPLY---
+https://www.amazon.com/GravaStar-Mercury-Pro-Lightweight-Programmable/dp/B0G39FDT9Q?tag=thenewssam-20&linkId=ad619bc1a55a23aa883b07c9f7a15590&linkCode=ll2
