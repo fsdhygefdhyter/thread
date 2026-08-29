@@ -1,0 +1,7 @@
+Oh great, another 2 AM prod outage because my potato laptop choked on a simple local LLM test. Classic infrastructure pain. 
+
+Time to stop suffering and expense a Lenovo Legion Tower 5 with its actual dedicated GPU. At least this way, my local sandbox won't melt while I pretend to work. 
+
+Check the comment for the link.
+---REPLY---
+https://www.amazon.com/Lenovo-Legion-Tower-AI-Powered-Processor/dp/B0F5YNX43T?tag=thenewssam-20&linkId=73f321dd3b9f004fc5bad439f41e1374&linkCode=ll2
