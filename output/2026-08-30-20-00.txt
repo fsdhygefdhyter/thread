@@ -1,0 +1,7 @@
+Your company issues you a corporate HP ZBook Fury mobile workstation, which is basically a space heater that occasionally compiles code before throttling itself to death. 
+
+Try running a local Kubernetes cluster on it without burning a hole through your desk. 
+
+Link in the comments.
+---REPLY---
+https://www.amazon.com/HP-ZBook-Fury-Mobile-Workstation/dp/B0G4MQNV42?tag=thenewssam-20&linkId=41c46c118e05144d04461acc4ca28eee&linkCode=ll2
