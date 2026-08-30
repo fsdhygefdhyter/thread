@@ -1,0 +1,7 @@
+Oh great, another 2 AM memory leak because my local dev setup runs on a potato. 
+
+Picked up a GEEKOM AX8 Max mini PC just to compile code locally without melting my desk. It actually handles heavy Docker builds without sounding like a jet engine taking off. 
+
+Link in the comments below.
+---REPLY---
+https://www.amazon.com/GEEKOM-AX8-Max-Computers-Business/dp/B0DSPB26NK?tag=thenewssam-20&linkId=c3782d2223d62fa99d1709f421958d95&linkCode=ll2
