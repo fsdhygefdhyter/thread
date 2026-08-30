@@ -1,0 +1,7 @@
+Your current laptop sounds like a dying jet engine because you're trying to run Kubernetes locally on a potato. 
+
+Grab this Lenovo ThinkPad mobile workstation instead so your IDE stops freezing during every single git pull. 
+
+Link in the comments below.
+---REPLY---
+https://www.amazon.com/Lenovo-ThinkPad-21QT002HUS-Mobile-Workstation/dp/B0H5YRGD2N?tag=thenewssam-20&linkId=a5ac83d90ca17e1de24fe87206c07a06&linkCode=ll2
