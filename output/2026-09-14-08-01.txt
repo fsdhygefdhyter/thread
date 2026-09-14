@@ -1,0 +1,7 @@
+Relying solely on S3 for cold storage until your CFO screams about data egress fees is a bold strategy. 
+
+Just plug in a Seagate Portable External Hard Drive and hoard your local backups away from AWS billing alarms. 
+
+Check the comment for the link.
+---REPLY---
+https://www.amazon.com/Seagate-Portable-External-Hard-Drive/dp/B07CRG94G3?tag=thenewssam-20&linkId=2d0a4054dec96efbaabc39a9626a4f69&linkCode=ll2
