@@ -1,0 +1,7 @@
+Oh great, another 3 AM production crash because my local dev laptop melted under a basic Docker build. Classic. 
+
+I finally stopped pretending and got a GEEKOM AX8 Max mini PC just to compile code locally without taking off. It actually handles heavy workloads without sounding like a jet engine about to take off. 
+
+Link in the comments below.
+---REPLY---
+https://www.amazon.com/GEEKOM-AX8-Max-Computers-Business/dp/B0DSPB26NK?tag=thenewssam-20&linkId=3e0703303c45284839e1379ba6e78739&linkCode=ll2
